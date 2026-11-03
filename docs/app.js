@@ -129,6 +129,21 @@
         item.appendChild(el("small", null, "Evidence: " + finding.evidence_ids.join(", ")));
         root.appendChild(item);
       });
+      if (result.evidence.length) {
+        const evidenceDetails = el("details", "evidence-details");
+        evidenceDetails.appendChild(el("summary", null, "Inspect " + result.evidence.length + " source evidence records"));
+        const evidenceList = el("div", "evidence-list");
+        result.evidence.forEach(record => {
+          const line = el("div", "evidence-record");
+          line.appendChild(el("strong", null, record.id));
+          line.appendChild(el("span", "muted", record.source));
+          const value = el("pre", null, JSON.stringify(record.value, null, 2));
+          line.appendChild(value);
+          evidenceList.appendChild(line);
+        });
+        evidenceDetails.appendChild(evidenceList);
+        root.appendChild(evidenceDetails);
+      }
       if (!result.findings.length) {
         root.appendChild(el("p", "muted", result.outcome === "source_unavailable"
           ? "Investigation stopped after the retry budget. No root cause is asserted."
