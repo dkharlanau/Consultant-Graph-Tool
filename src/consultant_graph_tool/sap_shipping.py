@@ -137,7 +137,15 @@ class SAPShippingPack:
             else:
                 proposed = matching_sp[0][1]["shipping_point"]
                 derived["proposed_shipping_point"] = proposed
-                proof.append(evidence(f"config:shipping_point_rule:{matching_sp[0][0]}", matching_sp[0][1], "Matching synthetic rule"))
+                rule_ref = f"config:shipping_point_rule:{matching_sp[0][0]}"
+                proof.append(evidence(rule_ref, matching_sp[0][1], "Matching synthetic rule"))
+                if proposed not in points:
+                    issues.append(finding(
+                        "proposed_shipping_point_unknown", "configuration_conflict", "SAP LE / Configuration",
+                        "The matched synthetic rule points to a shipping point absent from the reference dataset.",
+                        "Validate the shipping point record and assignment before evaluating a route.",
+                        [rule_ref, "config:shipping_point_rules"],
+                    ))
 
         assigned = order.get("assigned_shipping_point")
         if assigned:
