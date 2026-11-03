@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a1425">
+  <meta name="description" content="A reproducible graph workflow lab for consultants. Explore SAP sales order logistics diagnostics with evidence, state, bounded retries and human review.">
+  <title>Consultant Graph Tool | SAP Logistics Lab</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#lab">Skip to the interactive lab</a>
+  <header class="site-header">
+    <a class="brand" href="https://github.com/dkharlanau/Consultant-Graph-Tool" aria-label="Consultant Graph Tool on GitHub">
+      <span class="brand-icon" aria-hidden="true">C<span class="brand-dot">·</span>G</span>
+      <span>Consultant Graph Tool <small>Open-source lab</small></span>
+    </a>
+    <a class="github-link" href="https://github.com/dkharlanau/Consultant-Graph-Tool">Source on GitHub <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse-dot"></span> Execution graph / SAP Logistics Pack 01</div>
+        <h1 id="hero-heading">Design the workflow.<br><em>Defend the decision.</em></h1>
+        <p class="lede">A practical architecture lab for consultants. Follow a real LangGraph execution through synthetic SAP sales order data, deterministic checks, evidence verification and human-controlled decisions.</p>
+        <div class="hero-facts" aria-label="Prototype properties">
+          <span>14 synthetic cases</span>
+          <span>7 workflow nodes</span>
+          <span>No SAP credentials</span>
+          <span>No LLM required</span>
+        </div>
+        <a class="primary-link" href="#lab">Explore a diagnostic run <span aria-hidden="true">↓</span></a>
+      </div>
+      <aside class="hero-aside">
+        <div class="mini-metric"><span>01</span><strong>Business context</strong><p>Legacy order migration → S/4HANA SD</p></div>
+        <div class="mini-metric"><span>02</span><strong>Reasoning boundary</strong><p>Rules classify; evidence supports; humans decide</p></div>
+        <div class="mini-metric"><span>03</span><strong>Execution contract</strong><p>Repeatable results, traceable steps, bounded failures</p></div>
+      </aside>
+    </section>
+
+    <section class="lab-section" id="lab" aria-labelledby="lab-heading">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">01 / Interactive execution</div>
+          <h2 id="lab-heading">Inspect the graph, one node at a time.</h2>
+          <p>These steps replay JSON traces exported from the tested Python/LangGraph workflow. The browser does not execute Python or contact SAP.</p>
+        </div>
+        <span class="replay-badge">Recorded execution</span>
+      </div>
+      <div id="load-error" role="alert" class="error-box" hidden></div>
+      <div class="lab-grid">
+        <aside class="panel selector-panel" aria-label="Scenario selection and input">
+          <h3>Scenario</h3>
+          <label for="case-picker">Select a synthetic SAP sales order case</label>
+          <select id="case-picker" disabled><option>Loading traces…</option></select>
+          <p id="case-description" class="muted">Export traces using the Python CLI to begin.</p>
+          <div class="divider"></div>
+          <h3>Source snapshot</h3>
+          <p class="label-hint">Order / material / ship-to inputs</p>
+          <pre id="input-view" tabindex="0" aria-label="Synthetic source data">No data loaded.</pre>
+        </aside>
+        <div class="workspace">
+          <div class="panel graph-panel">
+            <div class="panel-top">
+              <div><h3>Execution path</h3><p class="muted" id="graph-summary">Select a case to inspect its execution.</p></div>
+              <div class="legend"><span class="legend-dot traversed"></span>Visited <span class="legend-dot active"></span>Active</div>
+            </div>
+            <div class="graph-canvas">
+              <svg id="graph-view" viewBox="0 0 1150 410" role="img" aria-label="Graph of load, validate, analyze, diagnose, verify, review and report nodes"></svg>
+            </div>
+            <div class="control-row">
+              <button id="reset" type="button" disabled>Reset</button>
+              <button id="previous" type="button" disabled>Previous</button>
+              <button id="next" type="button" disabled>Next step</button>
+              <button id="play" type="button" disabled>Play run</button>
+              <span class="step-counter" id="step-counter" aria-live="polite">Step — / —</span>
+            </div>
+          </div>
+          <div class="lower-grid">
+            <section class="panel state-panel" aria-labelledby="state-title">
+              <h3 id="state-title">State after this step</h3>
+              <p id="step-message" class="muted">The state is created as each node completes.</p>
+              <pre id="state-view" tabindex="0" aria-label="Graph state">No state yet.</pre>
+            </section>
+            <section class="panel result-panel" aria-labelledby="result-title">
+              <h3 id="result-title">Diagnostic outcome</h3>
+              <p id="outcome" class="outcome">Awaiting execution</p>
+              <div id="recommendations"><p class="muted">Run the graph to see root causes, evidence and owner recommendations.</p></div>
+            </section>
+          </div>
+          <section class="panel timeline-panel" aria-labelledby="timeline-title">
+            <div class="panel-top"><h3 id="timeline-title">Execution trace</h3><span class="muted">Click any completed step</span></div>
+            <ol id="trace-list"></ol>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="explain-section" aria-labelledby="explain-title">
+      <div class="eyebrow">02 / Architectural decisions</div>
+      <h2 id="explain-title">Where software ends and judgment starts.</h2>
+      <div class="principle-grid">
+        <article><span class="principle-number">01</span><h3>Deterministic by default</h3><p>The graph evaluates synthetic SAP determination keys with regular Python. A probabilistic model must not invent master data or configuration.</p></article>
+        <article><span class="principle-number">02</span><h3>Evidence before action</h3><p>Every finding points to a source field or configuration fixture. Incomplete proof stops unsupported conclusions.</p></article>
+        <article><span class="principle-number">03</span><h3>Bounded autonomy</h3><p>Retries stop after three attempts. Human review uses a checkpoint and an explicit resume decision; it never changes SAP.</p></article>
+        <article><span class="principle-number">04</span><h3>Portable scenario packs</h3><p>LangGraph orchestration is shared. SAP Logistics is an adapter; a future pack can diagnose MDG, integration or migration issues.</p></article>
+      </div>
+      <div class="boundary-note"><strong>Important boundary:</strong> This example represents a simplified classic sales-order determination path. SAP behavior depends on release, customizing and document context. The UI replays actual offline graph results, not a live SAP or LLM integration.</div>
+    </section>
+
+    <section class="resources" aria-labelledby="resources-title">
+      <div class="eyebrow">03 / Reproduce it locally</div>
+      <h2 id="resources-title">From browser replay to executable graph.</h2>
+      <pre class="command"><code>python -m pip install -e ".[dev]"
+cgt list
+cgt run no-route-rule
+cgt run no-route-rule --review --decision approve
+cgt export-traces --output docs/traces.json
+python -m http.server 8000 --directory docs</code></pre>
+      <p>See the <a href="https://github.com/dkharlanau/Consultant-Graph-Tool#readme">README and architecture decision record</a> for boundaries, extension instructions and tests. For domain detail, read <a href="https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/c7894a248ca14f74aca67f97528e5ad7/601bbf53d25ab64ce10000000a174cb4.html">SAP Route Determination</a> and <a href="https://docs.langchain.com/oss/python/langgraph/interrupts">LangGraph human interrupts</a>.</p>
+    </section>
+  </main>
+  <footer><span>Consultant Graph Tool · Synthetic, read-only educational prototype</span><a href="https://github.com/dkharlanau/Consultant-Graph-Tool">GitHub repository</a></footer>
+</body>
+</html>
