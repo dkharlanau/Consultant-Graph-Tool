@@ -125,3 +125,24 @@ def test_export_is_reproducible_and_generated_from_actual_graph(pack: SAPShippin
     assert all("input" in item for item in a["cases"])
     parsed = json.loads(first.read_text(encoding="utf-8"))
     assert parsed["schema_version"] == "1.0"
+
+
+def test_reference_integrity_does_not_report_false_success() -> None:
+    pack = SAPShippingPack()
+    pack.fixture["shipping_point_rules"][0]["shipping_point"] = "SP-ABSENT"
+    report = run_case(pack, "happy-path")
+    assert report["outcome"] == "diagnosed_for_review"
+    assert "proposed_shipping_point_unknown" in {f["code"] for f in report["findings"]}
+    assert report["derived"]["route_status"] == "blocked_by_shipping_point"
+    assert report["verified"]
+
+
+def test_conflicting_route_configuration_is_not_silently_selected() -> None:
+    from copy import deepcopy
+    pack = SAPShippingPack()
+    pack.fixture["route_rules"].append(deepcopy(pack.fixture["route_rules"][0]))
+    report = run_case(pack, "happy-path")
+    assert report["outcome"] == "diagnosed_for_review"
+    assert "ambiguous_route_rule" in {f["code"] for f in report["findings"]}
+    assert report["derived"]["proposed_route"] is None
+    assert report["derived"]["route_status"] == "ambiguous"
