@@ -1,0 +1,53 @@
+{
+  "pack": "sap-shipping",
+  "description": "Synthetic classic SD logistics determination example, not an SAP runtime emulator.",
+  "base_case": {
+    "order": {
+      "sales_order": "SO-DEMO-001",
+      "item": "000010",
+      "plant": "PL01",
+      "shipping_condition": "01",
+      "material": "MAT01",
+      "ship_to": "BP01",
+      "assigned_shipping_point": null,
+      "assigned_route": null
+    },
+    "material": {
+      "loading_group": "0001",
+      "transportation_group": "0001"
+    },
+    "ship_to": {
+      "country": "PL",
+      "transportation_zone": "PL-WAW"
+    }
+  },
+  "shipping_points": {
+    "SP01": {"plant": "PL01", "country": "DE", "transportation_zone": "DE-BER"},
+    "SP02": {"plant": "PL01", "country": "DE", "transportation_zone": "DE-HAM"}
+  },
+  "shipping_point_rules": [
+    {"plant": "PL01", "shipping_condition": "01", "loading_group": "0001", "shipping_point": "SP01"},
+    {"plant": "PL01", "shipping_condition": "02", "loading_group": "0001", "shipping_point": "SP01"},
+    {"plant": "PL01", "shipping_condition": "02", "loading_group": "0001", "shipping_point": "SP02"}
+  ],
+  "route_rules": [
+    {"departure_country": "DE", "departure_zone": "DE-BER", "destination_country": "PL", "destination_zone": "PL-WAW", "shipping_condition": "01", "transportation_group": "0001", "route": "R-DE-PL-01"},
+    {"departure_country": "DE", "departure_zone": "DE-HAM", "destination_country": "PL", "destination_zone": "PL-WAW", "shipping_condition": "01", "transportation_group": "0001", "route": "R-DE-PL-02"}
+  ],
+  "cases": [
+    {"id": "happy-path", "title": "Order with valid shipping point and route", "description": "Both synthetic determination rules match.", "changes": {}},
+    {"id": "missing-plant", "title": "Missing delivering plant", "description": "The order item cannot determine a shipping point.", "changes": {"order.plant": null}},
+    {"id": "missing-loading-group", "title": "Missing material loading group", "description": "Shipping point determination lacks a material key.", "changes": {"material.loading_group": null}},
+    {"id": "missing-shipping-condition", "title": "Missing effective shipping condition", "description": "Both determinations depend on shipping condition.", "changes": {"order.shipping_condition": null}},
+    {"id": "no-shipping-point-rule", "title": "No matching shipping point rule", "description": "A different plant has no matching fixture configuration.", "changes": {"order.plant": "PL02"}},
+    {"id": "missing-destination-zone", "title": "Missing ship-to transportation zone", "description": "The route inputs are incomplete.", "changes": {"ship_to.transportation_zone": null}},
+    {"id": "missing-transportation-group", "title": "Missing material transportation group", "description": "Route determination lacks a material key.", "changes": {"material.transportation_group": null}},
+    {"id": "no-route-rule", "title": "No matching route", "description": "All fields exist but the route combination is absent.", "changes": {"ship_to.transportation_zone": "PL-KRK"}},
+    {"id": "conflicting-shipping-rule", "title": "Ambiguous configuration", "description": "Two synthetic shipping point rules match the same keys.", "changes": {"order.shipping_condition": "02"}},
+    {"id": "transient-source-error", "title": "Temporary source failure", "description": "The second attempt succeeds.", "source_failures": 1, "changes": {}},
+    {"id": "persistent-source-error", "title": "Persistent source failure", "description": "The source stays unavailable beyond the retry budget.", "source_failures": 4, "changes": {}},
+    {"id": "manual-shipping-point", "title": "Manual shipping point alternative", "description": "A valid assigned shipping point differs from the proposal.", "changes": {"order.assigned_shipping_point": "SP02"}},
+    {"id": "unknown-shipping-point", "title": "Unknown assigned shipping point", "description": "An assigned shipping point does not exist in this fixture.", "changes": {"order.assigned_shipping_point": "SP-UNKNOWN"}},
+    {"id": "manual-route", "title": "Manually assigned route", "description": "A route override must be confirmed, not automatically overwritten.", "changes": {"order.assigned_route": "MANUAL-R01"}}
+  ]
+}
