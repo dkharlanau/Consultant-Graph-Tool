@@ -44,7 +44,7 @@
         <div>
           <div class="eyebrow">01 / Interactive execution</div>
           <h2 id="lab-heading">Inspect the graph, one node at a time.</h2>
-          <p>These steps replay JSON traces exported from the tested Python/LangGraph workflow. The browser does not execute Python or contact SAP.</p>
+          <p>These steps replay JSON traces exported from the tested Python/LangGraph workflow. The browser does not execute Python, contact SAP, or request an AI response. Two additional runs show scripted CLI decisions at a real review interrupt; the browser does not collect approvals.</p>
         </div>
         <span class="replay-badge">Recorded execution</span>
       </div>
@@ -52,9 +52,10 @@
       <div class="lab-grid">
         <aside class="panel selector-panel" aria-label="Scenario selection and input">
           <h3>Scenario</h3>
-          <label for="case-picker">Select a synthetic SAP sales order case</label>
+          <label for="case-picker">Select one of 14 synthetic cases or two recorded review runs</label>
           <select id="case-picker" disabled><option>Loading traces…</option></select>
           <p id="case-description" class="muted">Export traces using the Python CLI to begin.</p>
+          <p id="replay-mode" class="muted" aria-live="polite">The page only replays offline executions.</p>
           <div class="divider"></div>
           <h3>Source snapshot</h3>
           <p class="label-hint">Order / material / ship-to inputs</p>

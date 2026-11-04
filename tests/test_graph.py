@@ -120,6 +120,7 @@ def test_export_is_reproducible_and_generated_from_actual_graph(pack: SAPShippin
     export_traces(pack, second)
     assert first.read_bytes() == second.read_bytes()
     assert len(a["cases"]) == 14
+    assert len(a["review_replays"]) == 2
     assert a["cases"][0]["result"]["trace"][0]["node"] == "load"
     assert all(item["result"]["trace"] for item in a["cases"])
     assert all("input" in item for item in a["cases"])
@@ -146,3 +147,24 @@ def test_conflicting_route_configuration_is_not_silently_selected() -> None:
     assert "ambiguous_route_rule" in {f["code"] for f in report["findings"]}
     assert report["derived"]["proposed_route"] is None
     assert report["derived"]["route_status"] == "ambiguous"
+
+
+def test_recorded_review_replays_are_real_interrupt_resumes(pack: SAPShippingPack, tmp_path) -> None:
+    exported = export_traces(pack, tmp_path / "review.json")
+    assert {item["recorded_review_decision"] for item in exported["review_replays"]} == {"approve", "reject"}
+    for replay in exported["review_replays"]:
+        assert replay["decision_source"] == "scripted_cli_parameter"
+        assert replay["result"]["case_id"] == "no-route-rule"
+        assert replay["result"]["outcome"] == (
+            "proposal_approved" if replay["recorded_review_decision"] == "approve" else "proposal_rejected"
+        )
+        assert "review" in [step["node"] for step in replay["result"]["trace"]]
+    assert all("review" not in [step["node"] for step in item["result"]["trace"]] for item in exported["cases"])
+
+
+def test_every_recorded_transition_is_in_declared_graph(pack: SAPShippingPack, tmp_path) -> None:
+    exported = export_traces(pack, tmp_path / "edges.json")
+    allowed = {(edge["from"], edge["to"]) for edge in exported["edges"]}
+    for item in [*exported["cases"], *exported["review_replays"]]:
+        steps = item["result"]["trace"]
+        assert all((a["node"], b["node"]) in allowed for a, b in zip(steps, steps[1:])), item["id"]

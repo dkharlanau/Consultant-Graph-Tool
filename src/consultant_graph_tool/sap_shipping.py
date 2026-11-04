@@ -32,6 +32,7 @@ class SAPShippingPack:
     """Example adapter for the generic consultant graph."""
 
     name = "sap-shipping"
+    review_demo_case_id = "no-route-rule"
 
     def __init__(self) -> None:
         path = files("consultant_graph_tool").joinpath("data/sap_shipping.json")

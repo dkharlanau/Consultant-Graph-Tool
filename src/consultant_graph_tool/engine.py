@@ -266,6 +266,33 @@ def export_traces(pack: ScenarioPack, output: str | Path) -> dict[str, Any]:
             for case in pack.list_cases()
         ],
     }
+    # These are additional *recorded* CLI resumes, never browser-driven approvals.
+    # A pack may nominate one actionable case without coupling the generic engine
+    # to SAP-specific case IDs. Packs without findings produce no review replays.
+    candidates = [
+        item for item in result["cases"]
+        if item["result"]["outcome"] == "diagnosed_for_review" and item["result"]["verified"]
+    ]
+    preferred_id = getattr(pack, "review_demo_case_id", None)
+    featured = next(
+        (item for item in candidates if item["id"] == preferred_id),
+        candidates[0] if candidates else None,
+    )
+    result["review_replays"] = [
+        {
+            "id": f"{featured['id']}-recorded-{decision}",
+            "title": f"Recorded CLI review: {decision} proposal",
+            "description": (
+                f"Pre-supplied CLI decision ({decision}) resumes a real LangGraph "
+                "interrupt. No human approval is collected in this browser."
+            ),
+            "input": pack.get_case(featured["id"]),
+            "result": run_case(pack, featured["id"], require_review=True, decision=decision),
+            "recorded_review_decision": decision,
+            "decision_source": "scripted_cli_parameter",
+        }
+        for decision in ("approve", "reject")
+    ] if featured else []
     path = Path(output)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")

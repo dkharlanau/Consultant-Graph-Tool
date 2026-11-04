@@ -17,6 +17,7 @@
   const $ = id => document.getElementById(id);
   let dataset = null;
   let activeCase = null;
+  let replayOptions = [];
   let stepIndex = -1;
   let playTimer = null;
 
@@ -47,11 +48,14 @@
     root.appendChild(definitions);
     const visited = new Set(selectedTrace().slice(0, stepIndex + 1).map(step => step.node));
     const current = stepIndex >= 0 ? selectedTrace()[stepIndex].node : null;
+    const previous = stepIndex > 0 ? selectedTrace()[stepIndex - 1].node : null;
 
     dataset.edges.forEach(edge => {
       const a = positions[edge.from], b = positions[edge.to];
       if (!a || !b) return;
-      const isActive = current === edge.to && visited.has(edge.from);
+      // Highlight only the edge that the recorded trace actually traversed.
+      // An earlier visited node is not proof that its edge to the current node ran.
+      const isActive = current === edge.to && previous === edge.from;
       let d;
       if (edge.from === edge.to) {
         const x = a[0], y = a[1];
@@ -179,10 +183,13 @@
   }
   function showCase(caseId) {
     pause();
-    activeCase = dataset.cases.find(item => item.id === caseId);
+    activeCase = replayOptions.find(item => item.id === caseId);
     if (!activeCase) return;
     stepIndex = -1;
     $("case-description").textContent = activeCase.description;
+    $("replay-mode").textContent = activeCase.recorded_review_decision
+      ? "Scripted CLI decision: " + activeCase.recorded_review_decision + ". This replays a real LangGraph interrupt/resume; the browser cannot approve or reject anything."
+      : "Recorded run without a review decision. To trigger a live interrupt, run the Python CLI locally.";
     const input = activeCase.input;
     $("input-view").textContent = JSON.stringify({
       order: input.order, material: input.material, ship_to: input.ship_to,
@@ -221,19 +228,21 @@
       return response.json();
     })
     .then(payload => {
-      if (payload.schema_version !== "1.0" || !Array.isArray(payload.cases) || !payload.nodes || !Array.isArray(payload.edges)) {
+      if (payload.schema_version !== "1.0" || !Array.isArray(payload.cases) || !payload.nodes || !Array.isArray(payload.edges) || (payload.review_replays && !Array.isArray(payload.review_replays))) {
         throw new Error("Unsupported or invalid replay schema");
       }
       dataset = payload;
+      replayOptions = [...payload.cases, ...(payload.review_replays || [])];
       const select = $("case-picker");
       select.replaceChildren();
-      payload.cases.forEach(item => {
+      replayOptions.forEach(item => {
         const option = el("option", null, item.title);
         option.value = item.id;
         select.appendChild(option);
       });
       select.disabled = false;
-      showCase(payload.cases[0].id);
+      if (!replayOptions.length) throw new Error("No recorded executions available");
+      showCase(replayOptions[0].id);
     })
     .catch(error => {
       const banner = $("load-error");
