@@ -148,10 +148,17 @@
         evidenceDetails.appendChild(evidenceList);
         root.appendChild(evidenceDetails);
       }
+      if (result.unverified_finding_codes?.length) {
+        root.appendChild(el("p", "muted", "Unverified finding codes (no advice): " +
+          result.unverified_finding_codes.join(", ")));
+      }
       if (!result.findings.length) {
-        root.appendChild(el("p", "muted", result.outcome === "source_unavailable"
+        const message = result.outcome === "source_unavailable"
           ? "Investigation stopped after the retry budget. No root cause is asserted."
-          : "No issues found in this limited synthetic rule set."));
+          : result.outcome === "insufficient_evidence"
+            ? "Evidence references are incomplete. Findings and actions are withheld."
+            : "No issues found in this limited synthetic rule set.";
+        root.appendChild(el("p", "muted", message));
       }
     } else {
       root.appendChild(el("p", "muted", "The final report appears after the report node completes."));

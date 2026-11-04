@@ -180,6 +180,20 @@ def build_graph(pack: ScenarioPack):
             outcome = "diagnosed_for_review"
         update = _trace(state, "report", f"Workflow finished: {outcome}.")
         trace = update["trace"]
+        # A failed evidence-reference gate must not publish action recommendations.
+        # Retain codes for audit, but suppress unverified details/owners/actions.
+        if outcome == "insufficient_evidence":
+            public_findings = []
+            public_diagnosis = {
+                "classification": "insufficient_evidence",
+                "summary": "Evidence references are incomplete; findings and actions withheld.",
+                "recommendations": [],
+            }
+            unverified_codes = [item["code"] for item in findings]
+        else:
+            public_findings = findings
+            public_diagnosis = state.get("diagnosis", {})
+            unverified_codes = []
         return {
             **update,
             "report": {
@@ -188,9 +202,10 @@ def build_graph(pack: ScenarioPack):
                 "outcome": outcome,
                 "source_attempts": state.get("attempts", 0),
                 "derived": state.get("derived", {}),
-                "findings": findings,
+                "findings": public_findings,
+                "unverified_finding_codes": unverified_codes,
                 "evidence": state.get("evidence", []),
-                "diagnosis": state.get("diagnosis", {}),
+                "diagnosis": public_diagnosis,
                 "verified": bool(state.get("verified", False)),
                 "review_status": state.get("review_status", "not_requested"),
                 "trace": trace,

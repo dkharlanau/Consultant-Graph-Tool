@@ -63,7 +63,7 @@ The first release covers the narrow *classic sales-order determination* pattern,
 - A manually assigned alternative shipping point is **not automatically treated as invalid**.
 - A missing synthetic rule triggers investigation of the corresponding configuration, not an invented SAP setting.
 
-The pack includes missing master data, missing rules, duplicate rules, manual overrides, successful determinations, temporary source errors and permanent failures. Each finding has a category, business owner, suggested action and evidence reference IDs. Each node produces a bounded trace with the current state.
+The pack includes missing master data, missing rules, duplicate rules, manual overrides, successful determinations, temporary source errors and permanent failures. Each verified finding has a category, business owner, suggested action and evidence reference IDs. The evidence gate checks **reference coverage within the synthetic fixture**, not semantic truth or a customer's SAP system. If references are missing, the public report withholds findings and actions, retaining only unverified finding codes for audit. Each node produces a bounded trace with the current state.
 
 Read authoritative SAP references: [Shipping Points](https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/c7894a248ca14f74aca67f97528e5ad7/5d1bbf53d25ab64ce10000000a174cb4.html) and [Route Determination](https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/c7894a248ca14f74aca67f97528e5ad7/601bbf53d25ab64ce10000000a174cb4.html). SAP Cloud editions, configuration variants, document overrides and extensions may differ.
 

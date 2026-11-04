@@ -16,7 +16,7 @@ We instead use a reusable LangGraph execution engine and domain-specific rule pa
 | Input facts | Scenario pack / future read-only adapter | Sales order, material and ship-to records |
 | Domain rules | Deterministic Python functions | Shipping point and route lookup in fixture |
 | Orchestration | LangGraph StateGraph | Branching, retries, interruption and resume |
-| Evidence gate | Engine | Every finding references inspectable source IDs |
+| Evidence gate | Engine | Checks that every finding cites existing fixture evidence IDs; not external fact verification |
 | Proposed action | Pack, reported by engine | Check route determination customizing |
 | Approval | Human interrupt | Approve or reject the *proposal* |
 | Execution | Not implemented | **No SAP write capability** |
@@ -68,9 +68,10 @@ There is no SAP write action, even after approval.
 1. **False equivalence with SAP customizing.** Clearly label fixtures and link official documentation.
 2. **Hallucinated recommendations.** No LLM required; all findings point to exact fixture evidence IDs.
 3. **Unbounded investigations.** Fixed three-attempt retry budget, explicit stop outcomes.
-4. **Unsafe write access.** No network connector or write executor in the MVP.
-5. **Stale demo.** Regenerate browser traces with `cgt export-traces` from the same installed package being tested.
-6. **Hidden data leakage.** Commit synthetic data only and never introduce credentials.
+4. **Unsupported recommendations.** If evidence IDs are missing, the report returns `insufficient_evidence`, withholds finding details and actions, and retains only finding codes for debugging. Passing the gate means reference coverage, not SAP truth.
+5. **Unsafe write access.** No network connector or write executor in the MVP.
+6. **Stale demo.** Regenerate browser traces with `cgt export-traces` from the same installed package being tested.
+7. **Hidden data leakage.** Commit synthetic data only and never introduce credentials.
 
 ## Extension contract
 

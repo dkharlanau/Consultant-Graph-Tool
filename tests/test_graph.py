@@ -168,3 +168,22 @@ def test_every_recorded_transition_is_in_declared_graph(pack: SAPShippingPack, t
     for item in [*exported["cases"], *exported["review_replays"]]:
         steps = item["result"]["trace"]
         assert all((a["node"], b["node"]) in allowed for a, b in zip(steps, steps[1:])), item["id"]
+
+
+def test_evidence_gap_withholds_actions_and_skips_review() -> None:
+    class UnverifiedSAPShippingPack(SAPShippingPack):
+        def analyze(self, case):
+            findings, proof, derived = super().analyze(case)
+            if case["case_id"] == "no-route-rule":
+                findings[0]["evidence_ids"].append("missing:source-reference")
+            return findings, proof, derived
+
+    report = run_case(UnverifiedSAPShippingPack(), "no-route-rule", require_review=True, decision="approve")
+    assert report["outcome"] == "insufficient_evidence"
+    assert report["verified"] is False
+    assert report["findings"] == []
+    assert report["unverified_finding_codes"] == ["route_rule_not_found"]
+    assert report["diagnosis"]["classification"] == "insufficient_evidence"
+    assert report["diagnosis"]["recommendations"] == []
+    assert report["review_status"] == "not_requested"
+    assert "review" not in [step["node"] for step in report["trace"]]
