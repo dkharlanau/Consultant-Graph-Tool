@@ -119,7 +119,7 @@ def test_export_is_reproducible_and_generated_from_actual_graph(pack: SAPShippin
     a = export_traces(pack, first)
     export_traces(pack, second)
     assert first.read_bytes() == second.read_bytes()
-    assert len(a["cases"]) == 14
+    assert len(a["cases"]) == 18
     assert len(a["review_replays"]) == 2
     assert a["cases"][0]["result"]["trace"][0]["node"] == "load"
     assert all(item["result"]["trace"] for item in a["cases"])
@@ -187,3 +187,60 @@ def test_evidence_gap_withholds_actions_and_skips_review() -> None:
     assert report["diagnosis"]["recommendations"] == []
     assert report["review_status"] == "not_requested"
     assert "review" not in [step["node"] for step in report["trace"]]
+
+
+@pytest.mark.parametrize(
+    "case_id,effective,source,shipping_point,route,route_status,expected_codes",
+    [
+        ("shipping-condition-customer-pl01", "01", "simulated_customer_master", "SP01", "R-DE-PL-01", "matched", set()),
+        ("shipping-condition-customer-pl02", "01", "simulated_customer_master", None, None, "blocked_by_shipping_point", {"shipping_point_rule_not_found"}),
+        ("shipping-condition-file-pl02", "02", "simulated_upload_applied", "SP03", "R-IT-PL-02", "matched", set()),
+        ("shipping-condition-file-pl01", "02", "simulated_upload_applied", None, None, "blocked_by_shipping_point", {"ambiguous_shipping_point_rule"}),
+    ],
+)
+def test_synthetic_upload_source_and_plant_diagnostics(
+    pack: SAPShippingPack, case_id: str, effective: str, source: str,
+    shipping_point: str | None, route: str | None, route_status: str, expected_codes: set[str],
+) -> None:
+    report = run_case(pack, case_id)
+    derived = report["derived"]
+    assert derived["effective_shipping_condition"] == effective
+    assert derived["shipping_condition_source"] == source
+    assert derived["shipping_condition_selection_assumed"] is True
+    assert derived["shipping_condition_sources"] == {"customer_master": "01", "upload_file": "02"}
+    assert derived["effective_shipping_point"] == shipping_point
+    assert derived["proposed_route"] == route
+    assert derived["route_status"] == route_status
+    assert {f["code"] for f in report["findings"]} == expected_codes
+    assert report["outcome"] == ("diagnosed_for_review" if expected_codes else "no_issue_found")
+    assert report["verified"] is True
+    proof = {item["id"]: item for item in report["evidence"]}
+    assert proof["order:shipping_condition"]["value"] == effective
+    assert proof["order:customer_shipping_condition"]["value"] == "01"
+    assert proof["order:file_shipping_condition"]["value"] == "02"
+    assert proof["order:shipping_condition_resolution"]["value"] in {"customer_selected", "file_selected"}
+
+
+def test_missing_file_value_never_falls_back_silently_to_customer(pack: SAPShippingPack) -> None:
+    case = pack.get_case("shipping-condition-file-pl02")
+    case["order"]["file_shipping_condition"] = None
+    issues, proof = pack.validate(case)
+    assert "missing_shipping_condition" in {issue["code"] for issue in issues}
+    assert next(item for item in proof if item["id"] == "order:shipping_condition")["value"] is None
+    _, _, derived = pack.analyze(case)
+    assert derived["effective_shipping_condition"] is None
+    assert derived["route_status"] == "blocked_by_shipping_point"
+
+
+def test_old_scenarios_still_use_pre_resolved_shipping_condition(pack: SAPShippingPack) -> None:
+    report = run_case(pack, "happy-path")
+    assert report["derived"]["effective_shipping_condition"] == "01"
+    assert report["derived"]["shipping_condition_source"] == "recorded_order"
+    assert report["derived"]["shipping_condition_selection_assumed"] is False
+
+
+def test_unsupported_synthetic_source_mode_is_rejected(pack: SAPShippingPack) -> None:
+    case = pack.get_case("shipping-condition-file-pl02")
+    case["order"]["shipping_condition_resolution"] = "magic_sap_priority"
+    with pytest.raises(ValueError, match="Unsupported synthetic shipping condition resolution"):
+        pack.validate(case)

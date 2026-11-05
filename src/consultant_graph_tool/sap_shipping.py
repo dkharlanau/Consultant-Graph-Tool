@@ -28,6 +28,24 @@ def finding(
     }
 
 
+# Deliberate fixture-only choices, NOT a general SAP BAPI/FM precedence rule.
+# "recorded_order" preserves the original pack's already-effective header value.
+SHIPPING_CONDITION_SELECTION = {
+    "recorded_order": ("shipping_condition", "recorded_order"),
+    "customer_selected": ("customer_shipping_condition", "simulated_customer_master"),
+    "file_selected": ("file_shipping_condition", "simulated_upload_applied"),
+}
+
+
+def resolve_shipping_condition(order: dict[str, Any]) -> tuple[Any, str]:
+    """Select a synthetic source; actual upload mapping must be verified in SAP."""
+    mode = order.get("shipping_condition_resolution", "recorded_order")
+    if mode not in SHIPPING_CONDITION_SELECTION:
+        raise ValueError(f"Unsupported synthetic shipping condition resolution: {mode}")
+    field, source = SHIPPING_CONDITION_SELECTION[mode]
+    return order.get(field), source
+
+
 class SAPShippingPack:
     """Example adapter for the generic consultant graph."""
 
@@ -74,6 +92,12 @@ class SAPShippingPack:
                     [f"input:{entity}"],
                 ))
                 return issues, proof
+        selected_condition, selected_source = resolve_shipping_condition(case["order"])
+        if case["order"].get("shipping_condition_resolution", "recorded_order") != "recorded_order":
+            for field in ("customer_shipping_condition", "file_shipping_condition", "shipping_condition_resolution"):
+                proof.append(evidence(
+                    f"order:{field}", case["order"].get(field), "Synthetic customer/upload source assumption",
+                ))
         required = (
             ("order", "plant", "missing_delivering_plant", "SD / Master Data", "Check the delivering plant on the sales order item."),
             ("order", "shipping_condition", "missing_shipping_condition", "SD / Master Data", "Check the effective shipping condition in the sales order."),
@@ -83,9 +107,17 @@ class SAPShippingPack:
             ("ship_to", "transportation_zone", "missing_destination_zone", "Customer Master Data", "Maintain or correct the ship-to transportation zone."),
         )
         for entity, field, code, owner, action in required:
-            value = case[entity].get(field)
+            value = (
+                selected_condition if (entity, field) == ("order", "shipping_condition")
+                else case[entity].get(field)
+            )
             ref = f"{entity}:{field}"
-            proof.append(evidence(ref, value, f"Synthetic {entity} record"))
+            source_label = (
+                f"Synthetic effective shipping condition ({selected_source})"
+                if (entity, field) == ("order", "shipping_condition")
+                else f"Synthetic {entity} record"
+            )
+            proof.append(evidence(ref, value, source_label))
             if value is None or value == "":
                 issues.append(finding(
                     code, "master_data", owner, f"Required field {entity}.{field} is missing.",
@@ -107,24 +139,36 @@ class SAPShippingPack:
             "route_status": "not_evaluated",
         }
         order, material, ship_to = case["order"], case["material"], case["ship_to"]
+        selected_condition, selected_source = resolve_shipping_condition(order)
+        mode = order.get("shipping_condition_resolution", "recorded_order")
+        derived.update({
+            "effective_shipping_condition": selected_condition,
+            "shipping_condition_source": selected_source,
+            "shipping_condition_sources": {
+                "customer_master": order.get("customer_shipping_condition"),
+                "upload_file": order.get("file_shipping_condition"),
+            },
+            "shipping_condition_selection_assumed": mode != "recorded_order",
+        })
         rules = self.fixture["shipping_point_rules"]
         points = self.fixture["shipping_points"]
         proof.append(evidence("config:shipping_point_rules", rules, "Synthetic shipping point configuration"))
 
-        sp_keys = ("plant", "shipping_condition")
-        sp_ready = all(order.get(field) for field in sp_keys) and bool(material.get("loading_group"))
+        sp_ready = bool(order.get("plant") and selected_condition and material.get("loading_group"))
         matching_sp: list[tuple[int, dict[str, Any]]] = []
         if sp_ready:
             matching_sp = [
                 (idx, rule) for idx, rule in enumerate(rules)
                 if rule["plant"] == order["plant"]
-                and rule["shipping_condition"] == order["shipping_condition"]
+                and rule["shipping_condition"] == selected_condition
                 and rule["loading_group"] == material["loading_group"]
             ]
             if not matching_sp:
                 issues.append(finding(
                     "shipping_point_rule_not_found", "configuration", "SAP LE / Configuration",
-                    "No match in the synthetic shipping point determination rules.",
+                    f"No synthetic shipping point rule matches plant {order['plant']}, "
+                    f"selected shipping condition {selected_condition} ({selected_source}) "
+                    f"and loading group {material['loading_group']}.",
                     "Review the plant, shipping condition and loading group combination in shipping point configuration.",
                     ["order:plant", "order:shipping_condition", "material:loading_group", "config:shipping_point_rules"],
                 ))
@@ -187,7 +231,7 @@ class SAPShippingPack:
             derived["route_status"] = "blocked_by_plant_mismatch"
             return issues, proof, derived
         if not all([
-            order.get("shipping_condition"), material.get("transportation_group"),
+            selected_condition, material.get("transportation_group"),
             ship_to.get("country"), ship_to.get("transportation_zone"),
         ]):
             derived["route_status"] = "blocked_by_missing_input"
@@ -201,14 +245,16 @@ class SAPShippingPack:
             and rule["departure_zone"] == point["transportation_zone"]
             and rule["destination_country"] == ship_to["country"]
             and rule["destination_zone"] == ship_to["transportation_zone"]
-            and rule["shipping_condition"] == order["shipping_condition"]
+            and rule["shipping_condition"] == selected_condition
             and rule["transportation_group"] == material["transportation_group"]
         ]
         if not matching_routes:
             derived["route_status"] = "no_matching_rule"
             issues.append(finding(
                 "route_rule_not_found", "configuration", "SAP LE / Configuration",
-                "No route matches these values in the synthetic configuration.",
+                f"No synthetic route matches shipping condition {selected_condition} "
+                f"({selected_source}) from {point['country']}/{point['transportation_zone']} "
+                f"to {ship_to['country']}/{ship_to['transportation_zone']}.",
                 "Review departure country/zone, destination country/zone, shipping condition and transportation group in route determination.",
                 [f"record:shipping_point:{sp}", "ship_to:country", "ship_to:transportation_zone",
                  "order:shipping_condition", "material:transportation_group", "config:route_rules"],
