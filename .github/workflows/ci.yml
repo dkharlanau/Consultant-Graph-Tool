@@ -1,0 +1,42 @@
+name: Validate and build public demo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run real LangGraph tests
+        run: pytest -q
+      - name: Smoke test CLI
+        run: |
+          cgt list
+          cgt run happy-path
+          cgt graph
+      - name: Export browser traces from tested LangGraph
+        run: cgt export-traces --output docs/traces.json
+      - name: Verify generated JSON structure
+        run: |
+          python -m json.tool docs/traces.json > /dev/null
+          python -c 'import json; a=json.load(open("docs/traces.json")); assert len(a["cases"]) >= 10'
+      - name: Check browser script syntax
+        run: node --check docs/app.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: consultant-graph-tool-site
+          path: docs/
+          if-no-files-found: error
+          retention-days: 14

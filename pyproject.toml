@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "consultant-graph-tool"
+version = "0.1.0"
+description = "Evidence-driven, stateful workflow prototypes for consultants"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Dzmitryi Kharlanau" }]
+dependencies = ["langgraph>=1.0,<2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+cgt = "consultant_graph_tool.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+consultant_graph_tool = ["data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
